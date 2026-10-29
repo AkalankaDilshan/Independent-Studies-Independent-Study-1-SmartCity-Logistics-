@@ -1,0 +1,6 @@
+build/
+*.o
+smartcity
+run_tests
+run_bench
+.DS_Store
