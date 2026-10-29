@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "C/C++ Runner: Debug Session",
+      "type": "lldb",
+      "request": "launch",
+      "args": [],
+      "cwd": "/Users/akalanka/Documents/Master Of Computing Technology/Semester-1/1103_Advance_Algorithms/smartcity",
+      "program": "/Users/akalanka/Documents/Master Of Computing Technology/Semester-1/1103_Advance_Algorithms/smartcity/build/Debug/outDebug"
+    }
+  ]
+}
