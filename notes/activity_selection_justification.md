@@ -1,0 +1,3 @@
+## need to modify this one 
+
+Let g be the job with the earliest finish time, and let OPT be any optimal schedule. If OPT does not contain g, replace OPT's first job with g: because g finishes no later than that job, g does not overlap the rest of OPT, so the new schedule is still valid and has the same number of jobs. Therefore some optimal schedule always starts with the greedy choice. After choosing g, the remaining problem is the same problem on the jobs that start at or after g ends, so applying the same argument repeatedly shows the greedy schedule is optimal.
