@@ -15,6 +15,11 @@
 //for fractional knapsack
 #include "../greedy/fractional_knapsack.hpp"
 
+//huffman
+#include <map>
+#include <string>
+#include "../greedy/huffman.hpp"
+
 static bool is_sorted_by_deadline(const std::vector<Package>& v) {
     for (size_t i = 1; i < v.size(); i++)
         if (v[i - 1].deadline > v[i].deadline) return false;
@@ -236,11 +241,69 @@ static void test_fractional_knapsack() {
     std::cout << "[PASS] fractional_knapsack: 8 tests (incl. 300 random property checks)\n";
 }
 
+//huffman
+// No code may be the beginning of another code (prefix-free property)
+static bool is_prefix_free(const std::map<char, std::string>& codes) {
+    for (const auto& [c1, s1] : codes)
+        for (const auto& [c2, s2] : codes)
+            if (c1 != c2 && s2.compare(0, s1.size(), s1) == 0) return false;
+    return true;
+}
+
+static std::string round_trip(const std::string& text) {
+    auto root = build_huffman_tree(count_frequencies(text));
+    auto codes = build_codes(root.get());
+    return huffman_decode(huffman_encode(text, codes), root.get());
+}
+
+static void test_huffman() {
+    // 1. textbook frequencies a45 b13 c12 d16 e9 f5 -> optimal cost 224 bits
+    std::map<char, int> f = {{'a', 45}, {'b', 13}, {'c', 12}, {'d', 16}, {'e', 9}, {'f', 5}};
+    auto root = build_huffman_tree(f);
+    auto codes = build_codes(root.get());
+    long long cost = 0;
+    for (const auto& [c, n] : f) cost += static_cast<long long>(n) * codes[c].size();
+    assert(cost == 224);
+    assert(codes['a'].size() == 1);                // most frequent -> shortest code
+    assert(is_prefix_free(codes));
+
+    // 2. empty text -> empty everything, no crash
+    assert(build_huffman_tree({}) == nullptr);
+    assert(round_trip("").empty());
+
+    // 3. single distinct character -> code "0", still lossless
+    assert(round_trip("AAAAA") == "AAAAA");
+
+    // 4. two distinct characters -> 1 bit each
+    auto r2 = build_huffman_tree(count_frequencies("ABABBB"));
+    auto c2 = build_codes(r2.get());
+    assert(c2['A'].size() == 1 && c2['B'].size() == 1);
+
+    // 5. spaces, digits, punctuation and newlines survive (real manifest content)
+    std::string line = "PKG-1001, COLOMBO 03, 4.5 KG\nPKG-1002, NEGOMBO, 0.5 KG\n";
+    assert(round_trip(line) == line);
+
+    // 6. random texts: always lossless and prefix-free
+    std::mt19937 rng(3);
+    std::uniform_int_distribution<int> len(1, 400), ch(32, 126);
+    for (int t = 0; t < 200; t++) {
+        std::string s(len(rng), ' ');
+        for (char& c : s) c = static_cast<char>(ch(rng));
+        auto rt = build_huffman_tree(count_frequencies(s));
+        auto ct = build_codes(rt.get());
+        assert(is_prefix_free(ct));
+        assert(huffman_decode(huffman_encode(s, ct), rt.get()) == s);
+    }
+
+    std::cout << "[PASS] huffman: 6 tests (incl. 200 random lossless checks)\n";
+}
+
 int main() {
     test_merge_sort();
     test_closest_pair();
     test_activity_selection();
     test_fractional_knapsack();
+    test_huffman();
     std::cout << "All tests passed.\n";
     return 0;
 }
