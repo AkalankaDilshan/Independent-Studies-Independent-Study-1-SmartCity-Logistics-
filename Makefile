@@ -6,14 +6,15 @@ CXXFLAGS = -std=c++17 -O2 -Wall -Wextra #c++ standard version optimize performan
 #define source file
 #DC_SRC = divide_conquer/merge_sort.cpp
 DC_SRC = divide_conquer/merge_sort.cpp divide_conquer/closest_pair.cpp
-
+GREEDY_SRC = greedy/activity_selection.cpp
+SRC        = $(DC_SRC) $(GREEDY_SRC)
 #define all target ain enrty points
 all: smartcity tests bench # make sure these three targets are completed
 
 
 ## define targets
-smartcity: main.cpp $(DC_SRC)
-	$(CXX) $(CXXFLAGS) $^ -o $@		
+# smartcity: main.cpp $(DC_SRC)
+# 	$(CXX) $(CXXFLAGS) $^ -o $@		
 
 # $^	All prerequisite files listed after the colon
 # $@	The target name,
@@ -22,8 +23,11 @@ smartcity: main.cpp $(DC_SRC)
     main.cpp divide_conquer/merge_sort.cpp \
     -o smartcity
 
+## after greedy
+smartcity: main.cpp $(SRC)
+	$(CXX) $(CXXFLAGS) $^ -o $@
 
-tests: tests/test_all.cpp $(DC_SRC) 	#Compile the test program
+tests: tests/test_all.cpp $(SRC) 	#Compile the test program
 	$(CXX) $(CXXFLAGS) $^ -o run_tests	#Run the tests
 	./run_tests							#Run the tests	 						
 
@@ -33,7 +37,7 @@ tests: tests/test_all.cpp $(DC_SRC) 	#Compile the test program
     -o run_tests
 
 #Same as a test
-bench: bench/benchmarks.cpp $(DC_SRC)
+bench: bench/benchmarks.cpp $(SRC)
 	mkdir -p results
 	$(CXX) $(CXXFLAGS) $^ -o run_bench
 	./run_bench
