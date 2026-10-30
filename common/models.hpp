@@ -16,3 +16,10 @@ struct Hub {
     double x;   // metres east on the city map
     double y;   // metres north on the city map
 };
+
+// A delivery time window for one driver (used by activity selection)
+struct Job {
+    int id;
+    int start;   // e.g. minutes from shift start, or 24h clock hour
+    int end;     // must be >= start
+};
