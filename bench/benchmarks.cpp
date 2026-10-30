@@ -17,6 +17,10 @@
 //fractional knapsack
 #include "../greedy/fractional_knapsack.hpp"
 
+//huffman
+#include <sstream>
+#include "../greedy/huffman.hpp"
+
 static void bench_merge_sort() {
     std::mt19937 rng(42);                                
     std::uniform_int_distribution<int> deadline(1, 1000000);
@@ -140,6 +144,56 @@ static void demo_knapsack_greedy() {
     std::cout << "True 0/1 optimum (brute force)         : " << brute_01(items, W) << "\n";
 }
 
+//huffman
+// Show special characters readably in the code table
+static std::string show(char c) {
+    if (c == ' ') return "' '";
+    if (c == '\n') return "\\n";
+    return std::string(1, c);
+}
+
+static void demo_huffman() {
+    std::ifstream in("data/sample_manifest.txt");
+    if (!in) { std::cout << "Huffman: data/sample_manifest.txt not found\n"; return; }
+    std::stringstream ss;
+    ss << in.rdbuf();
+    std::string text = ss.str();
+
+    auto freq  = count_frequencies(text);
+    auto root  = build_huffman_tree(freq);
+    auto codes = build_codes(root.get());
+    std::string bits    = huffman_encode(text, codes);
+    std::string decoded = huffman_decode(bits, root.get());
+
+    size_t n = text.size(), k = freq.size();
+    size_t ascii_bits = 8 * n;
+    size_t fixed_len  = static_cast<size_t>(std::ceil(std::log2(static_cast<double>(k))));
+    size_t fixed_bits = fixed_len * n;
+    double ratio = static_cast<double>(bits.size()) / ascii_bits;
+
+    std::cout << "Huffman on data/sample_manifest.txt\n";
+    std::cout << "Characters: " << n << ", distinct: " << k << "\n";
+    std::cout << "Plain ASCII (8 bits/char)     : " << ascii_bits << " bits\n";
+    std::cout << "Fixed-length (" << fixed_len << " bits/char)    : " << fixed_bits << " bits\n";
+    std::cout << "Huffman                       : " << bits.size() << " bits\n";
+    std::cout << "Compression ratio (vs ASCII)  : " << ratio << "  (" << (1 - ratio) * 100 << "% smaller)\n";
+    std::cout << "Average bits per character    : " << static_cast<double>(bits.size()) / n << "\n";
+    std::cout << "Lossless (decode == original) : " << (decoded == text ? "yes" : "NO") << "\n";
+
+    // Code table, most frequent first -> results/huffman_codes.csv
+    std::vector<std::pair<char, int>> rows(freq.begin(), freq.end());
+    std::sort(rows.begin(), rows.end(), [](auto& a, auto& b) { return a.second > b.second; });
+    std::ofstream out("results/huffman_codes.csv");
+    out << "char,frequency,code,code_length\n";
+    std::cout << "Top 8 codes (char freq code):\n";
+    for (size_t i = 0; i < rows.size(); i++) {
+        char c = rows[i].first;
+        out << "\"" << show(c) << "\"," << rows[i].second << "," << codes[c] << "," << codes[c].size() << "\n";
+        if (i < 8) std::cout << "  " << show(c) << "\t" << rows[i].second << "\t" << codes[c] << "\n";
+    }
+}
+
+
 int main() {
     bench_merge_sort();
     std::cout << "\n";
@@ -148,5 +202,7 @@ int main() {
     demo_greedy_rules();
     std::cout << "\n";
     demo_knapsack_greedy();
+    std::cout << "\n";
+    demo_huffman();
     return 0;
 }
