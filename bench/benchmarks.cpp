@@ -9,6 +9,11 @@
 //closes pair
 #include "../divide_conquer/closest_pair.hpp"
 
+//activity selection
+#include <algorithm>
+#include <functional>
+#include "../greedy/activity_selection.hpp"
+
 static void bench_merge_sort() {
     std::mt19937 rng(42);                                
     std::uniform_int_distribution<int> deadline(1, 1000000);
@@ -63,10 +68,44 @@ static void bench_closest_pair() {
     }
 }
 
+//activity selection
+// Generic greedy with a different sorting rule (for comparison only)
+static int greedy_by(std::vector<Job> jobs, std::function<bool(const Job&, const Job&)> rule) {
+    std::sort(jobs.begin(), jobs.end(), rule);
+    std::vector<Job> chosen;
+    for (const Job& j : jobs) {
+        bool ok = true;
+        for (const Job& c : chosen)
+            if (j.start < c.end && c.start < j.end) { ok = false; break; }   // overlap
+        if (ok) chosen.push_back(j);
+    }
+    return static_cast<int>(chosen.size());
+}
+
+static void demo_greedy_rules() {
+    auto earliest_start = [](const Job& a, const Job& b) { return a.start < b.start; };
+    auto shortest       = [](const Job& a, const Job& b) { return a.end - a.start < b.end - b.start; };
+
+    struct Case { const char* name; std::vector<Job> jobs; };
+    std::vector<Case> cases = {
+        {"A: one long early job", {{1, 0, 10}, {2, 1, 2}, {3, 3, 4}}},
+        {"B: short job in the middle", {{1, 0, 5}, {2, 4, 7}, {3, 6, 11}}},
+    };
+
+    std::cout << "case\t\t\t\tearliest_start\tshortest\tearliest_finish\toptimal\n";
+    for (const Case& c : cases) {
+        std::cout << c.name << "\t" << greedy_by(c.jobs, earliest_start) << "\t\t"
+                  << greedy_by(c.jobs, shortest) << "\t\t"
+                  << activity_selection(c.jobs).size() << "\t\t"
+                  << max_jobs_brute_force(c.jobs) << "\n";
+    }
+}
 
 int main() {
     bench_merge_sort();
     std::cout << "\n";
     bench_closest_pair();
+    std::cout << "\n";
+    demo_greedy_rules();
     return 0;
 }
