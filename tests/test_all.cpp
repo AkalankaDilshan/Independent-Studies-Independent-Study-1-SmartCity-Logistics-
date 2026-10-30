@@ -9,6 +9,9 @@
 #include <random>
 #include "../divide_conquer/closest_pair.hpp"
 
+// for activity selection
+#include "../greedy/activity_selection.hpp"
+
 static bool is_sorted_by_deadline(const std::vector<Package>& v) {
     for (size_t i = 1; i < v.size(); i++)
         if (v[i - 1].deadline > v[i].deadline) return false;
@@ -100,9 +103,66 @@ static void test_closest_pair() {
     std::cout << "[PASS] closest_pair: 7 tests (incl. 200 random checks)\n";
 }
 
+// activity selection
+// true if no two chosen jobs overlap (chosen list is in finish order)
+static bool no_overlap(const std::vector<Job>& v) {
+    for (size_t i = 1; i < v.size(); i++)
+        if (v[i].start < v[i - 1].end) return false;
+    return true;
+}
+
+static void test_activity_selection() {
+    // 1. empty list -> nothing scheduled
+    assert(activity_selection({}).empty());
+
+    // 2. one job -> that job
+    std::vector<Job> one = {{1, 9, 11}};
+    assert(activity_selection(one).size() == 1);
+
+    // 3. all overlapping -> only one can be served
+    std::vector<Job> all_overlap = {{1, 1, 10}, {2, 2, 9}, {3, 3, 8}, {4, 4, 7}};
+    std::vector<Job> r = activity_selection(all_overlap);
+    assert(r.size() == 1 && r[0].id == 4);              // earliest finish = job 4
+
+    // 4. none overlapping -> all are served
+    std::vector<Job> none = {{1, 1, 2}, {2, 3, 4}, {3, 5, 6}};
+    assert(activity_selection(none).size() == 3);
+
+    // 5. touching windows (end == next start) are compatible
+    std::vector<Job> touch = {{1, 8, 10}, {2, 10, 12}, {3, 12, 14}};
+    assert(activity_selection(touch).size() == 3);
+
+    // 6. identical windows -> only one of them
+    std::vector<Job> same = {{1, 9, 12}, {2, 9, 12}, {3, 9, 12}};
+    assert(activity_selection(same).size() == 1);
+
+    // 7. unsorted input with the textbook example (answer = 4)
+    std::vector<Job> book = {{1, 5, 9}, {2, 1, 4}, {3, 3, 5}, {4, 0, 6}, {5, 5, 7},
+                             {6, 3, 9}, {7, 6, 10}, {8, 8, 11}, {9, 8, 12}, {10, 2, 14},
+                             {11, 12, 16}};
+    r = activity_selection(book);
+    assert(r.size() == 4 && no_overlap(r));
+
+    // 8. random validation: greedy count == brute-force optimum
+    std::mt19937 rng(11);
+    std::uniform_int_distribution<int> size(0, 12), st(0, 40), len(1, 10);
+    for (int t = 0; t < 300; t++) {
+        int n = size(rng);
+        std::vector<Job> jobs(n);
+        for (int i = 0; i < n; i++) { int s = st(rng); jobs[i] = {i, s, s + len(rng)}; }
+        std::vector<Job> g = activity_selection(jobs);
+        assert(no_overlap(g));
+        assert(static_cast<int>(g.size()) == max_jobs_brute_force(jobs));
+    }
+
+    std::cout << "[PASS] activity_selection: 8 tests (incl. 300 random checks vs brute force)\n";
+}
+
+
 int main() {
     test_merge_sort();
     test_closest_pair();
+    test_activity_selection();
     std::cout << "All tests passed.\n";
     return 0;
 }
