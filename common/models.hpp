@@ -9,3 +9,10 @@ struct Package {
     double weight;     // kg
     double value;      // LKR
 };
+
+// A delivery hub on a 2D city map (used by closest pair)
+struct Hub {
+    int id;
+    double x;   // metres east on the city map
+    double y;   // metres north on the city map
+};
