@@ -23,3 +23,10 @@ struct Job {
     int start;   // e.g. minutes from shift start, or 24h clock hour
     int end;     // must be >= start
 };
+
+// A cargo item (used by fractional knapsack and 0/1 knapsack)
+struct Item {
+    int id;
+    int weight;   // kg (int, so the 0/1 DP table in Week 2 can use it as an index)
+    int value;    // LKR
+};

@@ -12,6 +12,9 @@
 // for activity selection
 #include "../greedy/activity_selection.hpp"
 
+//for fractional knapsack
+#include "../greedy/fractional_knapsack.hpp"
+
 static bool is_sorted_by_deadline(const std::vector<Package>& v) {
     for (size_t i = 1; i < v.size(); i++)
         if (v[i - 1].deadline > v[i].deadline) return false;
@@ -159,10 +162,85 @@ static void test_activity_selection() {
 }
 
 
+//Fractional knapsack
+static bool near(double a, double b) { return std::fabs(a - b) < 1e-9; }
+
+// 0/1 optimum by trying every subset (small n only) - used as a lower bound
+static int best_01_brute(const std::vector<Item>& items, int W) {
+    int n = static_cast<int>(items.size()), best = 0;
+    for (int mask = 0; mask < (1 << n); mask++) {
+        int w = 0, v = 0;
+        for (int i = 0; i < n; i++)
+            if (mask & (1 << i)) { w += items[i].weight; v += items[i].value; }
+        if (w <= W) best = std::max(best, v);
+    }
+    return best;
+}
+
+static void test_fractional_knapsack() {
+    // Classic example: W = 50, items (weight, value)
+    std::vector<Item> classic = {{1, 10, 60}, {2, 20, 100}, {3, 30, 120}};
+
+    // 1. classic example: all of 1 and 2, then 20/30 of item 3 -> 60 + 100 + 80 = 240
+    FractionalResult r = fractional_knapsack(classic, 50);
+    assert(near(r.total_value, 240.0) && near(r.total_weight, 50.0));
+    assert(r.parts.size() == 3 && r.parts[2].id == 3 && near(r.parts[2].fraction, 2.0 / 3.0));
+
+    // 2. capacity 0 -> nothing loaded
+    r = fractional_knapsack(classic, 0);
+    assert(r.parts.empty() && near(r.total_value, 0.0));
+
+    // 3. no items -> nothing loaded
+    r = fractional_knapsack({}, 50);
+    assert(r.parts.empty());
+
+    // 4. capacity larger than total weight -> everything, whole
+    r = fractional_knapsack(classic, 1000);
+    assert(near(r.total_value, 280.0) && near(r.total_weight, 60.0));
+    for (const LoadedPart& p : r.parts) assert(near(p.fraction, 1.0));
+
+    // 5. exact fit -> whole items only, no fraction
+    r = fractional_knapsack(classic, 30);                 // items 1 + 2 = 30 kg
+    assert(near(r.total_value, 160.0) && r.parts.size() == 2);
+
+    // 6. one item heavier than capacity -> a fraction of it
+    std::vector<Item> heavy = {{1, 40, 200}};
+    r = fractional_knapsack(heavy, 10);
+    assert(near(r.total_value, 50.0) && near(r.parts[0].fraction, 0.25));
+
+    // 7. zero-weight item (e.g. a document) -> taken for free, no divide-by-zero
+    std::vector<Item> zero = {{1, 0, 30}, {2, 10, 50}};
+    r = fractional_knapsack(zero, 5);
+    assert(near(r.total_value, 30.0 + 25.0));
+
+    // 8. random properties (300 cases):
+    //    weight <= capacity, fractions in (0,1], at most one fractional item,
+    //    and fractional value >= best 0/1 value (splitting can never be worse)
+    std::mt19937 rng(5);
+    std::uniform_int_distribution<int> size(0, 12), wt(1, 30), val(1, 100), cap(0, 120);
+    for (int t = 0; t < 300; t++) {
+        int n = size(rng), W = cap(rng);
+        std::vector<Item> items(n);
+        for (int i = 0; i < n; i++) items[i] = {i, wt(rng), val(rng)};
+        r = fractional_knapsack(items, W);
+        assert(r.total_weight <= W + 1e-9);
+        int fractional_count = 0;
+        for (const LoadedPart& p : r.parts) {
+            assert(p.fraction > 0 && p.fraction <= 1.0 + 1e-12);
+            if (p.fraction < 1.0) fractional_count++;
+        }
+        assert(fractional_count <= 1);
+        assert(r.total_value + 1e-9 >= best_01_brute(items, W));
+    }
+
+    std::cout << "[PASS] fractional_knapsack: 8 tests (incl. 300 random property checks)\n";
+}
+
 int main() {
     test_merge_sort();
     test_closest_pair();
     test_activity_selection();
+    test_fractional_knapsack();
     std::cout << "All tests passed.\n";
     return 0;
 }

@@ -14,6 +14,9 @@
 #include <functional>
 #include "../greedy/activity_selection.hpp"
 
+//fractional knapsack
+#include "../greedy/fractional_knapsack.hpp"
+
 static void bench_merge_sort() {
     std::mt19937 rng(42);                                
     std::uniform_int_distribution<int> deadline(1, 1000000);
@@ -101,11 +104,49 @@ static void demo_greedy_rules() {
     }
 }
 
+//fractional knapsack
+// Greedy by ratio, but WHOLE items only (what happens if you reuse the
+// fractional idea for indivisible cargo)
+static int greedy_whole_items(std::vector<Item> items, int W) {
+    std::stable_sort(items.begin(), items.end(), [](const Item& a, const Item& b) {
+        return static_cast<long long>(a.value) * b.weight >
+               static_cast<long long>(b.value) * a.weight;
+    });
+    int v = 0;
+    for (const Item& it : items)
+        if (it.weight <= W) { W -= it.weight; v += it.value; }
+    return v;
+}
+
+// True 0/1 optimum by trying every subset (small n only)
+static int brute_01(const std::vector<Item>& items, int W) {
+    int n = static_cast<int>(items.size()), best = 0;
+    for (int mask = 0; mask < (1 << n); mask++) {
+        int w = 0, v = 0;
+        for (int i = 0; i < n; i++)
+            if (mask & (1 << i)) { w += items[i].weight; v += items[i].value; }
+        if (w <= W) best = std::max(best, v);
+    }
+    return best;
+}
+
+static void demo_knapsack_greedy() {
+    std::vector<Item> items = {{1, 10, 60}, {2, 20, 100}, {3, 30, 120}};   // ratios 6, 5, 4
+    int W = 50;
+    FractionalResult fr = fractional_knapsack(items, W);
+    std::cout << "Van capacity " << W << " kg, items (kg, LKR): (10,60) (20,100) (30,120)\n";
+    std::cout << "Fractional greedy (items can be split) : " << fr.total_value << "\n";
+    std::cout << "Ratio greedy, whole items only (0/1)   : " << greedy_whole_items(items, W) << "\n";
+    std::cout << "True 0/1 optimum (brute force)         : " << brute_01(items, W) << "\n";
+}
+
 int main() {
     bench_merge_sort();
     std::cout << "\n";
     bench_closest_pair();
     std::cout << "\n";
     demo_greedy_rules();
+    std::cout << "\n";
+    demo_knapsack_greedy();
     return 0;
 }
