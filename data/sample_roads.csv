@@ -1,0 +1,17 @@
+from,to,minutes,two_way
+Negombo Depot,Katunayake,15,1
+Katunayake,Seeduwa,10,1
+Seeduwa,Ja-Ela,8,1
+Negombo Depot,Ja-Ela,30,1
+Ja-Ela,Kandana,7,1
+Kandana,Wattala,9,1
+Ja-Ela,Kadawatha,20,1
+Kadawatha,Kelaniya,12,1
+Wattala,Kelaniya,10,1
+Wattala,Colombo 15,8,1
+Colombo 15,Colombo 10,9,1
+Kelaniya,Colombo 10,15,1
+Colombo 10,Colombo 07,10,1
+Colombo 07,Colombo 03,6,1
+Colombo 10,Colombo 03,18,1
+Kandana,Kadawatha,14,1
