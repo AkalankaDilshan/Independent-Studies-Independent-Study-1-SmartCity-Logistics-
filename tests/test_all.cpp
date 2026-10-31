@@ -20,6 +20,9 @@
 #include <string>
 #include "../greedy/huffman.hpp"
 
+//DP 0/1 Knapsack
+#include "../dynamic_programming/knapsack_01.hpp"
+
 static bool is_sorted_by_deadline(const std::vector<Package>& v) {
     for (size_t i = 1; i < v.size(); i++)
         if (v[i - 1].deadline > v[i].deadline) return false;
@@ -298,12 +301,63 @@ static void test_huffman() {
     std::cout << "[PASS] huffman: 6 tests (incl. 200 random lossless checks)\n";
 }
 
+// dP knapsack test case
+static void test_knapsack_01() {
+    long long calls = 0;
+
+    // 1. Week 1 counter-example: greedy got 160, DP must find 220 (items 2 and 3)
+    std::vector<Item> van = {{1, 10, 60}, {2, 20, 100}, {3, 30, 120}};
+    KnapsackResult r = knapsack_2d(van, 50);
+    assert(r.best_value == 220);
+    assert(r.chosen_ids.size() == 2 && r.chosen_ids[0] == 2 && r.chosen_ids[1] == 3);
+    assert(knapsack_1d(van, 50) == 220 && knapsack_brute(van, 50, calls) == 220);
+
+    // 2. hand-trace example: W = 5, (2,3) (3,4) (4,5) (5,6) -> 7 (items 1 and 2)
+    std::vector<Item> small = {{1, 2, 3}, {2, 3, 4}, {3, 4, 5}, {4, 5, 6}};
+    r = knapsack_2d(small, 5);
+    assert(r.best_value == 7 && r.chosen_ids.size() == 2);
+
+    // 3. capacity 0 -> nothing
+    assert(knapsack_2d(van, 0).best_value == 0 && knapsack_1d(van, 0) == 0);
+
+    // 4. no items -> nothing
+    assert(knapsack_2d({}, 50).best_value == 0 && knapsack_1d({}, 50) == 0);
+
+    // 5. every item heavier than the capacity -> nothing
+    std::vector<Item> heavy = {{1, 60, 500}, {2, 80, 900}};
+    assert(knapsack_2d(heavy, 50).best_value == 0 && knapsack_1d(heavy, 50) == 0);
+
+    // 6. each item used at most once (1D loop direction check):
+    //    one item (1 kg, 10), W = 5 -> 10, NOT 50
+    std::vector<Item> one = {{1, 1, 10}};
+    assert(knapsack_1d(one, 5) == 10 && knapsack_2d(one, 5).best_value == 10);
+
+    // 7. random: brute == 2D == 1D, and the chosen items really fit and add up
+    std::mt19937 rng(9);
+    std::uniform_int_distribution<int> size(0, 14), wt(1, 25), val(1, 100), cap(0, 80);
+    for (int t = 0; t < 300; t++) {
+        int n = size(rng), W = cap(rng);
+        std::vector<Item> items(n);
+        for (int i = 0; i < n; i++) items[i] = {i, wt(rng), val(rng)};
+        long long c = 0;
+        int b = knapsack_brute(items, W, c);
+        KnapsackResult d2 = knapsack_2d(items, W);
+        assert(b == d2.best_value && b == knapsack_1d(items, W));
+        int w_sum = 0, v_sum = 0;
+        for (int id : d2.chosen_ids) { w_sum += items[id].weight; v_sum += items[id].value; }
+        assert(w_sum <= W && v_sum == d2.best_value);
+    }
+
+    std::cout << "[PASS] knapsack_01: 7 tests (incl. 300 random checks: brute == 2D == 1D)\n";
+}
+
 int main() {
     test_merge_sort();
     test_closest_pair();
     test_activity_selection();
     test_fractional_knapsack();
     test_huffman();
+    test_knapsack_01();
     std::cout << "All tests passed.\n";
     return 0;
 }
