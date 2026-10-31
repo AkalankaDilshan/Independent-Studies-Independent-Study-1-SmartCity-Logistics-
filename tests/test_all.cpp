@@ -23,6 +23,10 @@
 //DP 0/1 Knapsack
 #include "../dynamic_programming/knapsack_01.hpp"
 
+//DP shortest path
+#include <algorithm>
+#include "../dynamic_programming/shortest_path_dp.hpp"
+
 static bool is_sorted_by_deadline(const std::vector<Package>& v) {
     for (size_t i = 1; i < v.size(); i++)
         if (v[i - 1].deadline > v[i].deadline) return false;
@@ -351,6 +355,91 @@ static void test_knapsack_01() {
     std::cout << "[PASS] knapsack_01: 7 tests (incl. 300 random checks: brute == 2D == 1D)\n";
 }
 
+//DP shprtest path test cases
+
+// All-pairs check with Floyd-Warshall O(V^3) - independent ground truth
+static std::vector<long long> floyd_from(int V, const std::vector<Edge>& edges, int src) {
+    std::vector<std::vector<long long>> d(V, std::vector<long long>(V, INF_COST));
+    for (int i = 0; i < V; i++) d[i][i] = 0;
+    for (const Edge& e : edges) d[e.from][e.to] = std::min(d[e.from][e.to], static_cast<long long>(e.cost));
+    for (int k = 0; k < V; k++)
+        for (int i = 0; i < V; i++)
+            for (int j = 0; j < V; j++)
+                if (d[i][k] != INF_COST && d[k][j] != INF_COST && d[i][k] + d[k][j] < d[i][j])
+                    d[i][j] = d[i][k] + d[k][j];
+    return d[src];
+}
+
+static void test_bellman_ford() {
+    // 1. single node -> distance 0 to itself, path is just [0]
+    ShortestPathResult r = bellman_ford(1, {}, 0);
+    assert(r.dist[0] == 0 && !r.negative_cycle && get_path(r, 0, 0).size() == 1);
+
+    // 2. unreachable node -> INF and empty path
+    std::vector<Edge> e2 = {{0, 1, 5}};                     // node 2 has no roads
+    r = bellman_ford(3, e2, 0);
+    assert(r.dist[2] == INF_COST && get_path(r, 0, 2).empty());
+
+    // 3. two-way roads with cycles: cheapest is 0-1-2-3 (1+2+1 = 4), not direct 0-3 (10)
+    std::vector<Edge> city;
+    add_road(city, 0, 1, 1); add_road(city, 1, 2, 2); add_road(city, 2, 3, 1);
+    add_road(city, 0, 3, 10); add_road(city, 1, 3, 6);
+    r = bellman_ford(4, city, 0);
+    assert(r.dist[3] == 4 && !r.negative_cycle);
+    std::vector<int> p = get_path(r, 0, 3);
+    assert((p == std::vector<int>{0, 1, 2, 3}));
+
+    // 4. negative edge, no cycle (e.g. a toll refund on a one-way road):
+    //    A->B 4, A->C 5, C->B -3  -> B = 2 via C (Dijkstra would wrongly keep 4)
+    std::vector<Edge> neg = {{0, 1, 4}, {0, 2, 5}, {2, 1, -3}};
+    r = bellman_ford(3, neg, 0);
+    assert(r.dist[1] == 2 && !r.negative_cycle);
+    assert((get_path(r, 0, 1) == std::vector<int>{0, 2, 1}));
+
+    // 5. negative cycle reachable from source -> detected, no path returned
+    std::vector<Edge> cyc = {{0, 1, 1}, {1, 2, 2}, {2, 1, -4}, {2, 3, 1}};
+    r = bellman_ford(4, cyc, 0);
+    assert(r.negative_cycle && get_path(r, 0, 3).empty());
+
+    // 6. early exit: a 5-node chain listed in path order settles in 1 round (+1 to confirm)
+    std::vector<Edge> chain = {{0, 1, 1}, {1, 2, 1}, {2, 3, 1}, {3, 4, 1}};
+    r = bellman_ford(5, chain, 0);
+    assert(r.dist[4] == 4 && r.rounds == 2);               // far fewer than V-1 = 4
+
+    // 7. invalid source -> nothing reachable, no crash
+    r = bellman_ford(3, e2, 7);
+    assert(r.dist[0] == INF_COST);
+
+    // 8. random directed graphs (weights 0..20) vs Floyd-Warshall
+    std::mt19937 rng(21);
+    std::uniform_int_distribution<int> vs(1, 15), cost(0, 20);
+    for (int t = 0; t < 200; t++) {
+        int V = vs(rng);
+        std::uniform_int_distribution<int> node(0, V - 1);
+        std::vector<Edge> edges;
+        int E = V * 2;
+        for (int i = 0; i < E; i++) edges.push_back({node(rng), node(rng), cost(rng)});
+        int src = node(rng);
+        r = bellman_ford(V, edges, src);
+        assert(r.dist == floyd_from(V, edges, src));
+        for (int v = 0; v < V; v++) {                        // every path really costs dist[v]
+            std::vector<int> path = get_path(r, src, v);
+            if (r.dist[v] == INF_COST) { assert(path.empty()); continue; }
+            assert(path.front() == src && path.back() == v);
+            long long sum = 0;                               // add up the cheapest road per step
+            for (size_t i = 1; i < path.size(); i++) {
+                long long best = INF_COST;
+                for (const Edge& e : edges)
+                    if (e.from == path[i - 1] && e.to == path[i]) best = std::min(best, static_cast<long long>(e.cost));
+                sum += best;
+            }
+            assert(sum == r.dist[v]);
+        }
+    }
+
+    std::cout << "[PASS] bellman_ford: 8 tests (incl. 200 random checks vs Floyd-Warshall)\n";
+}
+
 int main() {
     test_merge_sort();
     test_closest_pair();
@@ -358,6 +447,7 @@ int main() {
     test_fractional_knapsack();
     test_huffman();
     test_knapsack_01();
+    test_bellman_ford();
     std::cout << "All tests passed.\n";
     return 0;
 }
