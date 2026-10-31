@@ -30,3 +30,10 @@ struct Item {
     int weight;   // kg (int, so the 0/1 DP table in Week 2 can use it as an index)
     int value;    // LKR
 };
+
+//for Bellman-Ford shortest path
+struct Edge {
+    int from;
+    int to;
+    int cost;   // may be negative (one-way only)
+};
