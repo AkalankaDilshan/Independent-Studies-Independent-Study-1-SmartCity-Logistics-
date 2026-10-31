@@ -7,7 +7,7 @@ CXXFLAGS = -std=c++17 -O2 -Wall -Wextra #c++ standard version optimize performan
 #DC_SRC = divide_conquer/merge_sort.cpp
 DC_SRC = divide_conquer/merge_sort.cpp divide_conquer/closest_pair.cpp
 GREEDY_SRC = greedy/activity_selection.cpp greedy/fractional_knapsack.cpp greedy/huffman.cpp
-DP_SRC     = dynamic_programming/knapsack_01.cpp
+DP_SRC     = dynamic_programming/knapsack_01.cpp dynamic_programming/shortest_path_dp.cpp
 SRC        = $(DC_SRC) $(GREEDY_SRC) $(DP_SRC)
 #define all target ain enrty points
 all: smartcity tests bench # make sure these three targets are completed
