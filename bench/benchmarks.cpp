@@ -25,6 +25,10 @@
 #include <iomanip>
 #include "../dynamic_programming/knapsack_01.hpp"
 
+//DP shortest path
+#include <string>
+#include "../dynamic_programming/shortest_path_dp.hpp"
+
 static void bench_merge_sort() {
     std::mt19937 rng(42);                                
     std::uniform_int_distribution<int> deadline(1, 1000000);
@@ -261,6 +265,94 @@ static void bench_knapsack() {
     }
 }
 
+
+//Shortest path add the demo city
+// SmartCity road map: two-way roads, cost = travel minutes
+static const std::vector<std::string> CITY = {
+    "Negombo Depot", "Katunayake", "Seeduwa", "Ja-Ela", "Kandana", "Wattala",
+    "Kelaniya", "Colombo 15", "Colombo 10", "Colombo 07", "Colombo 03", "Kadawatha"};
+
+static std::vector<Edge> city_roads() {
+    std::vector<Edge> e;
+    add_road(e, 0, 1, 15); add_road(e, 1, 2, 10); add_road(e, 2, 3, 8);  add_road(e, 0, 3, 30);
+    add_road(e, 3, 4, 7);  add_road(e, 4, 5, 9);  add_road(e, 3, 11, 20); add_road(e, 11, 6, 12);
+    add_road(e, 5, 6, 10); add_road(e, 5, 7, 8);  add_road(e, 7, 8, 9);  add_road(e, 6, 8, 15);
+    add_road(e, 8, 9, 10); add_road(e, 9, 10, 6); add_road(e, 8, 10, 18); add_road(e, 4, 11, 14);
+    return e;
+}
+
+// Routes from the depot to every area
+static void demo_city_routes() {
+    std::vector<Edge> roads = city_roads();
+    int V = static_cast<int>(CITY.size());
+    ShortestPathResult r = bellman_ford(V, roads, 0);
+    std::cout << "Bellman-Ford from " << CITY[0] << " (" << V << " nodes, " << roads.size()
+              << " directed edges, " << r.rounds << " rounds, negative cycle: "
+              << (r.negative_cycle ? "yes" : "no") << ")\n";
+    for (int v = 1; v < V; v++) {
+        std::cout << "  " << std::setw(11) << std::left << CITY[v] << std::right
+                  << std::setw(4) << r.dist[v] << " min  ";
+        std::vector<int> p = get_path(r, 0, v);
+        for (size_t i = 0; i < p.size(); i++) std::cout << (i ? " -> " : "") << CITY[p[i]];
+        std::cout << "\n";
+    }
+}
+
+// Textbook DP table: D[k][v] = cheapest cost to v using at most k edges.
+// D[k][v] = min(D[k-1][v], min over edges (u,v) of D[k-1][u] + cost)
+static void print_bf_dp_table() {
+    // small graph for a hand trace: S=0, A=1, B=2, C=3, T=4 (one-way, one negative edge)
+    std::vector<std::string> name = {"S", "A", "B", "C", "T"};
+    std::vector<Edge> e = {{0, 1, 6}, {0, 2, 7}, {1, 3, 5}, {2, 3, -3}, {1, 4, -4}, {3, 4, 2}, {2, 1, 8}};
+    int V = 5;
+    std::vector<std::vector<long long>> D(V, std::vector<long long>(V, INF_COST));
+    D[0][0] = 0;
+    for (int k = 1; k < V; k++) {
+        D[k] = D[k - 1];
+        for (const Edge& ed : e)
+            if (D[k - 1][ed.from] != INF_COST)
+                D[k][ed.to] = std::min(D[k][ed.to], D[k - 1][ed.from] + ed.cost);
+    }
+    std::cout << "\nBellman-Ford DP table (edges: S->A 6, S->B 7, A->C 5, B->C -3, A->T -4, C->T 2, B->A 8)\n";
+    std::cout << "k \\ v";
+    for (auto& n : name) std::cout << std::setw(5) << n;
+    std::cout << "\n";
+    for (int k = 0; k < V; k++) {
+        std::cout << std::setw(5) << k;
+        for (long long d : D[k]) std::cout << std::setw(5) << (d == INF_COST ? std::string("inf") : std::to_string(d));
+        std::cout << "\n";
+    }
+    ShortestPathResult r = bellman_ford(V, e, 0);
+    std::cout << "bellman_ford() result :";
+    for (long long d : r.dist) std::cout << std::setw(5) << d;
+    std::cout << "   (rounds used: " << r.rounds << " of " << V - 1 << ")\n";
+}
+
+// Scaling on random connected road networks
+static void bench_bellman_ford() {
+    std::mt19937 rng(42);
+    std::ofstream out("results/bellman_ford.csv");
+    out << "V,E_directed,rounds,relaxations,worst_case_VxE,time_ms\n";
+    std::cout << "\nV\tE\trounds\trelaxations\tworst V*E\ttime ms\n";
+    for (int V : {100, 1000, 5000}) {
+        std::uniform_int_distribution<int> node(0, V - 1), cost(1, 30);
+        std::vector<Edge> edges;
+        for (int v = 1; v < V; v++) add_road(edges, v - 1, v, cost(rng));   // a chain keeps it connected
+        for (int i = 0; i < 3 * V; i++) add_road(edges, node(rng), node(rng), cost(rng));
+        std::shuffle(edges.begin(), edges.end(), rng);
+
+        auto t0 = std::chrono::steady_clock::now();
+        ShortestPathResult r = bellman_ford(V, edges, 0);
+        auto t1 = std::chrono::steady_clock::now();
+        long long E = static_cast<long long>(edges.size());
+        double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+        out << V << "," << E << "," << r.rounds << "," << r.relaxations << "," << (V - 1) * E << "," << ms << "\n";
+        std::cout << V << "\t" << E << "\t" << r.rounds << "\t" << r.relaxations << "\t\t"
+                  << (V - 1) * E << "\t" << ms << "\n";
+    }
+}
+
+
 int main() {
     bench_merge_sort();
     std::cout << "\n";
@@ -275,5 +367,9 @@ int main() {
     std::cout << "\n";
     print_knapsack_table();
     bench_knapsack();
+    std::cout << "\n";
+    demo_city_routes();
+    print_bf_dp_table();
+    bench_bellman_ford();
     return 0;
 }
