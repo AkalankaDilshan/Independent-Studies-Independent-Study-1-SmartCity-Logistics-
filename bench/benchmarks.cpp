@@ -1,6 +1,7 @@
 #include <chrono>
 #include <cmath>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <random>
 #include <vector>
@@ -29,12 +30,22 @@
 #include <string>
 #include "../dynamic_programming/shortest_path_dp.hpp"
 
+// Title line printed before each table: two blank lines, then "=== title ===".
+static void section(const std::string& title) {
+    static bool first = true;
+    if (!first) std::cout << "\n\n";
+    first = false;
+    std::cout << "=== " << title << " ===\n";
+}
+
 static void bench_merge_sort() {
     std::mt19937 rng(42);                                
     std::uniform_int_distribution<int> deadline(1, 1000000);
     std::ofstream out("results/merge_sort.csv");
     out << "n,comparisons,n_log2_n,ratio,time_ms\n";
-    std::cout << "n\tcomparisons\tn*log2(n)\tratio\ttime_ms\n";
+    section("Merge sort: comparisons vs n*log2(n), random deadlines (seed 42)");
+    std::cout << std::setw(8) << "n" << std::setw(14) << "comparisons" << std::setw(14) << "n*log2(n)"
+              << std::setw(12) << "ratio" << std::setw(12) << "time_ms" << "\n";
 
     for (int n : {1000, 5000, 10000, 50000, 100000}) {
         std::vector<Package> v(n);
@@ -48,8 +59,8 @@ static void bench_merge_sort() {
         double nlogn = n * std::log2(n);
         double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
         out << n << "," << comps << "," << nlogn << "," << comps / nlogn << "," << ms << "\n";
-        std::cout << n << "\t" << comps << "\t" << (long long)nlogn << "\t"
-                  << comps / nlogn << "\t" << ms << "\n";
+        std::cout << std::setw(8) << n << std::setw(14) << comps << std::setw(14) << (long long)nlogn
+                  << std::setw(12) << comps / nlogn << std::setw(12) << ms << "\n";
     }
 }
 
@@ -59,7 +70,10 @@ static void bench_closest_pair() {
     std::uniform_real_distribution<double> coord(0.0, 10000.0);   // city map 10 km x 10 km (metres)
     std::ofstream out("results/closest_pair.csv");
     out << "n,bf_dist_calls,dc_dist_calls,bf_time_ms,dc_time_ms,speedup,same_answer\n";
-    std::cout << "n\tBF calls\tD&C calls\tBF ms\tD&C ms\tspeedup\tsame\n";
+    section("Closest pair: brute force vs divide and conquer (distance calls, time)");
+    std::cout << std::setw(8) << "n" << std::setw(14) << "BF calls" << std::setw(14) << "D&C calls"
+              << std::setw(12) << "BF ms" << std::setw(12) << "D&C ms" << std::setw(10) << "speedup"
+              << std::setw(6) << "same" << "\n";
 
     for (int n : {100, 1000, 10000}) {
         std::vector<Hub> hubs(n);
@@ -78,8 +92,9 @@ static void bench_closest_pair() {
 
         out << n << "," << bf_calls << "," << dc_calls << "," << bf_ms << "," << dc_ms << ","
             << bf_ms / dc_ms << "," << (same ? "yes" : "no") << "\n";
-        std::cout << n << "\t" << bf_calls << "\t" << dc_calls << "\t" << bf_ms << "\t"
-                  << dc_ms << "\t" << bf_ms / dc_ms << "\t" << (same ? "yes" : "no") << "\n";
+        std::cout << std::setw(8) << n << std::setw(14) << bf_calls << std::setw(14) << dc_calls
+                  << std::setw(12) << bf_ms << std::setw(12) << dc_ms << std::setw(10) << bf_ms / dc_ms
+                  << std::setw(6) << (same ? "yes" : "no") << "\n";
     }
 }
 
@@ -107,12 +122,16 @@ static void demo_greedy_rules() {
         {"B: short job in the middle", {{1, 0, 5}, {2, 4, 7}, {3, 6, 11}}},
     };
 
-    std::cout << "case\t\t\t\tearliest_start\tshortest\tearliest_finish\toptimal\n";
+    section("Activity selection: jobs scheduled by each greedy rule vs the optimum");
+    std::cout << std::left << std::setw(30) << "case" << std::right << std::setw(16) << "earliest_start"
+              << std::setw(10) << "shortest" << std::setw(17) << "earliest_finish"
+              << std::setw(9) << "optimal" << "\n";
     for (const Case& c : cases) {
-        std::cout << c.name << "\t" << greedy_by(c.jobs, earliest_start) << "\t\t"
-                  << greedy_by(c.jobs, shortest) << "\t\t"
-                  << activity_selection(c.jobs).size() << "\t\t"
-                  << max_jobs_brute_force(c.jobs) << "\n";
+        std::cout << std::left << std::setw(30) << c.name << std::right
+                  << std::setw(16) << greedy_by(c.jobs, earliest_start)
+                  << std::setw(10) << greedy_by(c.jobs, shortest)
+                  << std::setw(17) << activity_selection(c.jobs).size()
+                  << std::setw(9) << max_jobs_brute_force(c.jobs) << "\n";
     }
 }
 
@@ -146,6 +165,7 @@ static void demo_knapsack_greedy() {
     std::vector<Item> items = {{1, 10, 60}, {2, 20, 100}, {3, 30, 120}};   // ratios 6, 5, 4
     int W = 50;
     FractionalResult fr = fractional_knapsack(items, W);
+    section("Knapsack: greedy (fractional and whole items) vs the true 0/1 optimum");
     std::cout << "Van capacity " << W << " kg, items (kg, LKR): (10,60) (20,100) (30,120)\n";
     std::cout << "Fractional greedy (items can be split) : " << fr.total_value << "\n";
     std::cout << "Ratio greedy, whole items only (0/1)   : " << greedy_whole_items(items, W) << "\n";
@@ -179,6 +199,7 @@ static void demo_huffman() {
     size_t fixed_bits = fixed_len * n;
     double ratio = static_cast<double>(bits.size()) / ascii_bits;
 
+    section("Huffman coding: compression of the sample manifest");
     std::cout << "Huffman on data/sample_manifest.txt\n";
     std::cout << "Characters: " << n << ", distinct: " << k << "\n";
     std::cout << "Plain ASCII (8 bits/char)     : " << ascii_bits << " bits\n";
@@ -197,7 +218,8 @@ static void demo_huffman() {
     for (size_t i = 0; i < rows.size(); i++) {
         char c = rows[i].first;
         out << "\"" << show(c) << "\"," << rows[i].second << "," << codes[c] << "," << codes[c].size() << "\n";
-        if (i < 8) std::cout << "  " << show(c) << "\t" << rows[i].second << "\t" << codes[c] << "\n";
+        if (i < 8) std::cout << "  " << std::setw(4) << show(c) << std::setw(8) << rows[i].second
+                             << std::setw(10) << codes[c] << "\n";
     }
 }
 
@@ -210,6 +232,7 @@ static void print_knapsack_table() {
     std::vector<std::vector<int>> dp;
     KnapsackResult r = knapsack_2d(items, W, &dp);
 
+    section("0/1 knapsack DP table (hand-trace example)");
     std::cout << "0/1 knapsack DP table, W = " << W << ", items (w,v): (2,3) (3,4) (4,5) (5,6)\n";
     std::cout << "i \\ w ";
     for (int w = 0; w <= W; w++) std::cout << std::setw(4) << w;
@@ -221,7 +244,7 @@ static void print_knapsack_table() {
     }
     std::cout << "Best value " << r.best_value << ", items:";
     for (int id : r.chosen_ids) std::cout << " " << id;
-    std::cout << "\n\n";
+    std::cout << "\n";
 }
 
 static void bench_knapsack() {
@@ -229,7 +252,10 @@ static void bench_knapsack() {
     std::uniform_int_distribution<int> wt(1, 20), val(1, 100);
     std::ofstream out("results/knapsack.csv");
     out << "n,W,brute_calls,brute_ms,dp2d_ms,dp1d_ms,same_answer\n";
-    std::cout << "n\tW\tbrute calls\tbrute ms\t2D ms\t1D ms\tsame\n";
+    section("0/1 knapsack: brute force vs DP (calls, time)");
+    std::cout << std::setw(6) << "n" << std::setw(6) << "W" << std::setw(14) << "brute calls"
+              << std::setw(12) << "brute ms" << std::setw(12) << "2D ms" << std::setw(12) << "1D ms"
+              << std::setw(6) << "same" << "\n";
     for (int n : {10, 15, 20, 25}) {
         std::vector<Item> items(n);
         int total = 0;
@@ -249,19 +275,23 @@ static void bench_knapsack() {
         bool same = (b == d2 && d2 == d1);
         out << n << "," << W << "," << calls << "," << ms(t0, t1) << "," << ms(t1, t2) << ","
             << ms(t2, t3) << "," << (same ? "yes" : "no") << "\n";
-        std::cout << n << "\t" << W << "\t" << calls << "\t\t" << ms(t0, t1) << "\t" << ms(t1, t2) << "\t"
-                  << ms(t2, t3) << "\t" << (same ? "yes" : "no") << "\n";
+        std::cout << std::setw(6) << n << std::setw(6) << W << std::setw(14) << calls
+                  << std::setw(12) << ms(t0, t1) << std::setw(12) << ms(t1, t2) << std::setw(12) << ms(t2, t3)
+                  << std::setw(6) << (same ? "yes" : "no") << "\n";
     }
 
     // Memory: table cells x sizeof(int). 2D = (n+1)(W+1), 1D = (W+1)
     std::ofstream mem("results/knapsack_memory.csv");
     mem << "n,W,bytes_2d,bytes_1d,saving_factor\n";
-    std::cout << "\nn\tW\t2D bytes\t1D bytes\tsaving\n";
+    section("0/1 knapsack memory: 2D table vs 1D rolling array");
+    std::cout << std::setw(6) << "n" << std::setw(8) << "W" << std::setw(12) << "2D bytes"
+              << std::setw(12) << "1D bytes" << std::setw(10) << "saving" << "\n";
     for (auto [n, cap] : std::vector<std::pair<long long, long long>>{{25, 50}, {100, 1000}, {1000, 10000}}) {
         long long b2 = (n + 1) * (cap + 1) * static_cast<long long>(sizeof(int));
         long long b1 = (cap + 1) * static_cast<long long>(sizeof(int));
         mem << n << "," << cap << "," << b2 << "," << b1 << "," << b2 / b1 << "\n";
-        std::cout << n << "\t" << cap << "\t" << b2 << "\t\t" << b1 << "\t\t" << b2 / b1 << "x\n";
+        std::cout << std::setw(6) << n << std::setw(8) << cap << std::setw(12) << b2
+                  << std::setw(12) << b1 << std::setw(9) << b2 / b1 << "x\n";
     }
 }
 
@@ -286,6 +316,7 @@ static void demo_city_routes() {
     std::vector<Edge> roads = city_roads();
     int V = static_cast<int>(CITY.size());
     ShortestPathResult r = bellman_ford(V, roads, 0);
+    section("Bellman-Ford: cheapest routes from the depot (travel minutes)");
     std::cout << "Bellman-Ford from " << CITY[0] << " (" << V << " nodes, " << roads.size()
               << " directed edges, " << r.rounds << " rounds, negative cycle: "
               << (r.negative_cycle ? "yes" : "no") << ")\n";
@@ -313,7 +344,8 @@ static void print_bf_dp_table() {
             if (D[k - 1][ed.from] != INF_COST)
                 D[k][ed.to] = std::min(D[k][ed.to], D[k - 1][ed.from] + ed.cost);
     }
-    std::cout << "\nBellman-Ford DP table (edges: S->A 6, S->B 7, A->C 5, B->C -3, A->T -4, C->T 2, B->A 8)\n";
+    section("Bellman-Ford DP table (hand-trace example)");
+    std::cout << "Bellman-Ford DP table (edges: S->A 6, S->B 7, A->C 5, B->C -3, A->T -4, C->T 2, B->A 8)\n";
     std::cout << "k \\ v";
     for (auto& n : name) std::cout << std::setw(5) << n;
     std::cout << "\n";
@@ -333,7 +365,9 @@ static void bench_bellman_ford() {
     std::mt19937 rng(42);
     std::ofstream out("results/bellman_ford.csv");
     out << "V,E_directed,rounds,relaxations,worst_case_VxE,time_ms\n";
-    std::cout << "\nV\tE\trounds\trelaxations\tworst V*E\ttime ms\n";
+    section("Bellman-Ford scaling: rounds and relaxations vs worst case V*E");
+    std::cout << std::setw(6) << "V" << std::setw(8) << "E" << std::setw(8) << "rounds"
+              << std::setw(14) << "relaxations" << std::setw(14) << "worst V*E" << std::setw(12) << "time ms" << "\n";
     for (int V : {100, 1000, 5000}) {
         std::uniform_int_distribution<int> node(0, V - 1), cost(1, 30);
         std::vector<Edge> edges;
@@ -347,27 +381,21 @@ static void bench_bellman_ford() {
         long long E = static_cast<long long>(edges.size());
         double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
         out << V << "," << E << "," << r.rounds << "," << r.relaxations << "," << (V - 1) * E << "," << ms << "\n";
-        std::cout << V << "\t" << E << "\t" << r.rounds << "\t" << r.relaxations << "\t\t"
-                  << (V - 1) * E << "\t" << ms << "\n";
+        std::cout << std::setw(6) << V << std::setw(8) << E << std::setw(8) << r.rounds
+                  << std::setw(14) << r.relaxations << std::setw(14) << (V - 1) * E
+                  << std::setw(12) << ms << "\n";
     }
 }
 
 
 int main() {
     bench_merge_sort();
-    std::cout << "\n";
     bench_closest_pair();
-    std::cout << "\n";
     demo_greedy_rules();
-    std::cout << "\n";
     demo_knapsack_greedy();
-    std::cout << "\n";
     demo_huffman();
-    std::cout << "\n";
-    std::cout << "\n";
     print_knapsack_table();
     bench_knapsack();
-    std::cout << "\n";
     demo_city_routes();
     print_bf_dp_table();
     bench_bellman_ford();
